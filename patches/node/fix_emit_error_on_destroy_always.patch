@@ -1,0 +1,25 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Shelley Vohr <shelley.vohr@gmail.com>
+Date: Wed, 2 Sep 2020 10:35:20 -0700
+Subject: fix: emit error on destroy always
+
+This commit: https://github.com/nodejs/node/commit/311e12b96201c01d6c66c800d8cfc59ebf9bc4ae
+made it such that when destroy was called multiple times, no error event would
+be emitted, which breaks several of our net tests. This ensures that an error
+event is emitted regardless.
+
+I plan to upstream this in some form.
+
+diff --git a/lib/internal/streams/destroy.js b/lib/internal/streams/destroy.js
+index f7f282ec5079f33da3708762f670ba9dd3cc8653..5431ed76f8a5ca01d5ce8d7842db2f3660712e65 100644
+--- a/lib/internal/streams/destroy.js
++++ b/lib/internal/streams/destroy.js
+@@ -9,6 +9,8 @@ function destroy(err, cb) {
+   if ((w && w.destroyed) || (r && r.destroyed)) {
+     if (typeof cb === 'function') {
+       cb();
++    } else if (err) {
++      process.nextTick(emitErrorNT, this, err);	
+     }
+ 
+     return this;
